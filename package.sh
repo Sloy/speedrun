@@ -10,7 +10,10 @@ cd "$(dirname "$0")"
 
 export SPEEDRUN_VERSION="${SPEEDRUN_VERSION:-$(git describe --tags --dirty 2>/dev/null || echo "dev-$(git rev-parse --short HEAD 2>/dev/null)")}"
 [ "${SPEEDRUN_NO_ANDROID:-}" != 1 ] || { echo "package.sh: a release needs the Android agent; unset SPEEDRUN_NO_ANDROID"; exit 1; }
-[ "${SPEEDRUN_NO_IOS:-}" != 1 ] || { echo "package.sh: a release needs the iOS agent; unset SPEEDRUN_NO_IOS"; exit 1; }
+# A package without the iOS agent is only for Intel Macs: the iOS agent needs Xcode 15, newer than
+# the macOS an Intel Mac can run. (Linux has no iOS agent anyway.)
+[ "${SPEEDRUN_NO_IOS:-}" != 1 ] || [ "$(uname -s)-$(uname -m)" = Darwin-x86_64 ] \
+  || { echo "package.sh: a release needs the iOS agent; unset SPEEDRUN_NO_IOS"; exit 1; }
 ./build.sh
 
 os=$(uname -s | tr '[:upper:]' '[:lower:]')
@@ -30,7 +33,7 @@ cp host/js/quickjs-ng/LICENSE "$stage/licenses/quickjs-ng.txt"
 cp host/js/datafaker/LICENSE "$stage/licenses/datafaker.txt"
 cp host/image/build/LICENSE.txt "$stage/licenses/stb.txt"
 cp host/fast_boot/LICENSE "$stage/licenses/simslim.txt"
-if command -v xcodebuild > /dev/null; then
+if [ "${SPEEDRUN_NO_IOS:-}" != 1 ] && command -v xcodebuild > /dev/null; then
   ios="Android and iOS simulators (the iOS agent was built with $(xcodebuild -version | sed -n 1p))"
 else
   ios="Android only (built without Xcode: no iOS agent)"
